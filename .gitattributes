@@ -1,0 +1,13 @@
+# 统一文本文件行尾，避免跨平台协作产生无意义差异
+* text=auto eol=lf
+
+# Windows 脚本保持 CRLF
+*.ps1 text eol=crlf
+
+# 二进制资源不做行尾转换
+*.png binary
+*.jpg binary
+*.pdf binary
+*.pptx binary
+*.docx binary
+*.db binary

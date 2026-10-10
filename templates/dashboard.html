@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>主面板 - 智慧迎新</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            overflow: hidden;
+            font-family: -apple-system, "Microsoft YaHei", "Segoe UI", sans-serif;
+            background: #f5f7fa;
+        }
+        .navbar {
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            height: 60px;
+            background: rgba(255,255,255,0.9);
+            backdrop-filter: blur(12px);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+            z-index: 1000;
+            flex-wrap: wrap;
+        }
+        .navbar .logo {
+            font-size: 1.3rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #1a73e8, #00c9a7);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .navbar .nav-links {
+            display: flex;
+            gap: 6px;
+            list-style: none;
+            flex-wrap: wrap;
+        }
+        .navbar .nav-links a {
+            color: #333;
+            font-size: 0.85rem;
+            padding: 6px 12px;
+            border-radius: 20px;
+            text-decoration: none;
+            transition: all 0.3s;
+            white-space: nowrap;
+        }
+        .navbar .nav-links a:hover,
+        .navbar .nav-links a.active {
+            background: #e8f0fe;
+            color: #1a73e8;
+            font-weight: 500;
+        }
+        .container {
+            height: calc(100vh - 60px);
+            margin-top: 60px;
+            display: flex;
+            flex-direction: column;
+            padding: 16px 20px 12px;
+            gap: 16px;
+        }
+        .top-row {
+            display: flex;
+            gap: 20px;
+            flex: 0 0 42%;
+            min-height: 0;
+        }
+        .top-row .card {
+            flex: 1;
+            margin: 0;
+            border-radius: 16px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 20px 24px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        .welcome-banner {
+            background: linear-gradient(135deg, #1a73e8, #4a90e2);
+            color: white;
+        }
+        .welcome-banner h2 {
+            font-size: 1.4rem;
+            margin-bottom: 6px;
+        }
+        .welcome-banner p {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+        .progress-card {
+            background: white;
+        }
+        .progress-card .card-title {
+            font-size: 1.1rem;
+            margin-bottom: 12px;
+            color: #1a73e8;
+            font-weight: 600;
+        }
+        .progress-bar {
+            height: 20px;
+            background: #e9ecef;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #1a73e8, #00c9a7);
+            border-radius: 10px;
+            transition: width 0.6s;
+        }
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 12px;
+            flex: 1;
+            min-height: 0;
+        }
+        .feature-card {
+            background: white;
+            border-radius: 14px;
+            padding: 12px 8px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            text-decoration: none;
+            color: #333;
+        }
+        .feature-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.12);
+        }
+        .feature-card .icon { font-size: 2rem; }
+        .feature-card h3 { font-size: 0.95rem; }
+        .feature-card p { font-size: 0.75rem; color: #777; }
+
+        @media (max-width: 900px) {
+            body { overflow-y: auto; }
+            .container { height: auto; overflow-y: auto; }
+            .top-row { flex-direction: column; flex: none; }
+            .feature-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+    </style>
+</head>
+<body>
+    {% set active_page = 'dashboard' %}
+    {% include '_navbar.html' %}
+
+    <div class="container">
+        <!-- 上半部分：欢迎区和进度区等面积并排 -->
+        <div class="top-row">
+            <div class="card welcome-banner">
+                <h2>👋 欢迎，{% if student and student.name %}{{ student.name }}{% else %}{{ username }}{% endif %}</h2>
+                <p>{% if student %}你的报到信息已保存，当前状态：{% if student.flow_step == 1 %}信息填报{% elif student.flow_step == 2 %}资格审核{% elif student.flow_step == 3 %}宿舍分配{% elif student.flow_step == 4 %}缴费确认{% else %}报到完成🎉{% endif %}{% else %}你还没有填写报到信息，请前往智能填报。{% endif %}</p>
+                {% if student and student.flow_step >= 3 and student.bed_id %}
+                <p style="margin-top:6px;font-size:0.85rem;background:rgba(255,255,255,0.2);padding:4px 10px;border-radius:10px;display:inline-block;">
+                    🛏️ {{ student.building or '' }} {{ student.room_number or '' }} {{ student.bed_number or '' }}
+                </p>
+                {% endif %}
+            </div>
+            <div class="card progress-card">
+                <div class="card-title">📋 报到进度</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: {% if student %}{{ student.flow_step * 20 }}{% else %}0{% endif %}%;"></div>
+                </div>
+                <p style="margin-top:10px;color:#555;">
+                    当前阶段：
+                    {% if student and student.flow_step == 1 %}信息填报
+                    {% elif student and student.flow_step == 2 %}资格审核
+                    {% elif student and student.flow_step == 3 %}宿舍分配
+                    {% elif student and student.flow_step == 4 %}缴费确认
+                    {% else %}报到完成
+                    {% endif %}
+                </p>
+                {% if student %}
+                <p style="margin-top:4px;color:#888;font-size:0.85rem;">
+                    学号：{{ student.student_id }} ｜ 班级：{{ student.class_name or '未填写' }} ｜ 专业：{{ student.major or '未填写' }}
+                </p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- 下半部分：功能入口 -->
+        <div class="feature-grid">
+            <div class="feature-card" onclick="location.href='/ocr_upload'">
+                <div class="icon">📝</div>
+                <h3>智能填报</h3>
+                <p>OCR自动填充</p>
+            </div>
+            <div class="feature-card" onclick="location.href='/navigation'">
+                <div class="icon">🗺️</div>
+                <h3>校园导航</h3>
+                <p>路线规划</p>
+            </div>
+            <div class="feature-card" onclick="location.href='/register_flow'">
+                <div class="icon">🧭</div>
+                <h3>报到流程</h3>
+                <p>步骤跟踪</p>
+            </div>
+            <div class="feature-card" onclick="location.href='/dorm_selection'">
+                <div class="icon">🛏️</div>
+                <h3>宿舍选择</h3>
+                <p>选床位</p>
+            </div>
+            <div class="feature-card" onclick="location.href='/campus3d'">
+                <div class="icon">🏫</div>
+                <h3>3D校园</h3>
+                <p>三维漫游</p>
+            </div>
+            <div class="feature-card" onclick="location.href='/chat'">
+                <div class="icon">💬</div>
+                <h3>聊天室</h3>
+                <p>答疑交流</p>
+            </div>
+        </div>
+    </div>
+    <script src="/static/js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,6 @@
+flask
+flask-login
+flask-cors
+werkzeug
+requests
+Pillow

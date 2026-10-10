@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>报到流程 - 智慧迎新</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, "Microsoft YaHei", sans-serif; background: #f5f7fa; }
+        .navbar {
+            position: fixed; top: 0; left: 0; right: 0; height: 60px;
+            background: rgba(255,255,255,0.95); backdrop-filter: blur(12px);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0 24px; z-index: 1000; flex-wrap: wrap;
+        }
+        .navbar .logo { font-size: 1.3rem; font-weight: 700; background: linear-gradient(135deg,#1a73e8,#00c9a7); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .navbar .nav-links { display: flex; gap: 6px; list-style: none; flex-wrap: wrap; }
+        .navbar .nav-links a { color: #333; font-size: 0.85rem; padding: 6px 12px; border-radius: 20px; text-decoration: none; transition: all 0.3s; }
+        .navbar .nav-links a:hover, .navbar .nav-links a.active { background: #e8f0fe; color: #1a73e8; font-weight: 500; }
+        .container { max-width: 900px; margin: 80px auto 40px; padding: 0 20px; }
+        .card { background: white; border-radius: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); padding: 24px; margin-bottom: 20px; }
+        .card-title { font-size: 1.2rem; font-weight: 600; color: #1a73e8; margin-bottom: 16px; }
+        .steps { display: flex; justify-content: space-between; margin-bottom: 30px; position: relative; padding: 0 10px; }
+        .steps::before { content: ''; position: absolute; top: 22px; left: 10%; right: 10%; height: 4px; background: #e0e0e0; z-index: 0; }
+        .step { text-align: center; position: relative; z-index: 1; flex: 1; cursor: pointer; }
+        .step .circle {
+            width: 44px; height: 44px; border-radius: 50%; background: #e0e0e0; color: #999;
+            display: flex; align-items: center; justify-content: center; margin: 0 auto;
+            font-weight: bold; font-size: 1.1rem; transition: all 0.3s; border: 3px solid white;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        }
+        .step.active .circle, .step.completed .circle {
+            background: linear-gradient(135deg, #1a73e8, #4a90e2); color: white;
+            box-shadow: 0 4px 12px rgba(26,115,232,0.4);
+        }
+        .step.completed .circle::after { content: '✓'; font-size: 1.2rem; font-weight: bold; }
+        .step .label { margin-top: 8px; font-size: 0.85rem; color: #777; }
+        .step.active .label { color: #1a73e8; font-weight: 700; }
+        .step.completed .label { color: #1a73e8; }
+        .btn { display: inline-block; padding: 10px 20px; border: none; border-radius: 25px; font-size: 0.9rem; cursor: pointer; transition: all 0.3s; margin: 0 5px; }
+        .btn-primary { background: linear-gradient(135deg,#1a73e8,#4a90e2); color: white; box-shadow: 0 4px 12px rgba(26,115,232,0.3); }
+        .btn-secondary { background: #e0e0e0; color: #333; }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,0,0,0.15); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+        .dorm-info { background: #f0f8ff; padding: 15px; border-radius: 10px; margin-top: 15px; border-left: 4px solid #1a73e8; }
+        .error-msg { color: #ea4335; font-size: 0.85rem; margin-top: 8px; min-height: 20px; }
+    </style>
+</head>
+<body>
+    {% set active_page = 'register_flow' %}
+    {% include '_navbar.html' %}
+
+    <div class="container">
+        <h2 class="card-title">🧭 报到流程</h2>
+        <div class="steps" id="steps">
+            <div class="step" data-step="1"><div class="circle">1</div><div class="label">信息填报</div></div>
+            <div class="step" data-step="2"><div class="circle">2</div><div class="label">资格审核</div></div>
+            <div class="step" data-step="3"><div class="circle">3</div><div class="label">宿舍分配</div></div>
+            <div class="step" data-step="4"><div class="circle">4</div><div class="label">缴费确认</div></div>
+            <div class="step" data-step="5"><div class="circle">5</div><div class="label">报到完成</div></div>
+        </div>
+
+        <div class="card">
+            <div class="card-title" id="statusText">正在加载...</div>
+            <p id="statusDesc">正在获取你的报到进度...</p>
+            <div id="dormInfo" class="dorm-info" style="display:none;">
+                <strong>🛏️ 已选择宿舍</strong>
+                <p id="dormDetails"></p>
+                <button class="btn btn-secondary" id="cancelDormBtn" style="margin-top:8px;">取消选择</button>
+            </div>
+            <div class="error-msg" id="errorMsg"></div>
+                        <div style="margin-top:20px; display:flex; justify-content:space-between; flex-wrap: wrap; gap: 10px;">
+                <button class="btn btn-success" id="payBtn" style="display:none;">💰 立即缴费</button>
+                <div style="display:flex; gap:10px;">
+                    <button class="btn btn-secondary" id="prevStepBtn" disabled>👈 上一步</button>
+                    <button class="btn btn-primary" id="nextStepBtn" disabled>👉 下一步</button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+        <script>
+        let currentStep = 1;
+        const stepElements = document.querySelectorAll('.step');
+        const statusText = document.getElementById('statusText');
+        const statusDesc = document.getElementById('statusDesc');
+        const prevBtn = document.getElementById('prevStepBtn');
+        const nextBtn = document.getElementById('nextStepBtn');
+        const payBtn = document.getElementById('payBtn');
+        const dormInfo = document.getElementById('dormInfo');
+        const dormDetails = document.getElementById('dormDetails');
+        const cancelDormBtn = document.getElementById('cancelDormBtn');
+        const errorMsg = document.getElementById('errorMsg');
+
+        const stepNames = {1:'信息填报',2:'资格审核',3:'宿舍分配',4:'缴费确认',5:'报到完成'};
+        const stepDescriptions = {
+            1: '请先完成智能填报，提交个人信息。',
+            2: '学校正在审核你的资料，请耐心等待。',
+            3: '审核通过！请选择你的宿舍。',
+            4: '请完成缴费确认。',
+            5: '恭喜你完成报到！欢迎加入智慧大学！🎉'
+        };
+
+        function updateSteps() {
+            stepElements.forEach((step, index) => {
+                step.classList.remove('active', 'completed');
+                const stepNum = index + 1;
+                if (stepNum < currentStep) step.classList.add('completed');
+                else if (stepNum === currentStep) step.classList.add('active');
+            });
+            statusText.textContent = `当前状态：${stepNames[currentStep]}`;
+            statusDesc.textContent = stepDescriptions[currentStep];
+            prevBtn.disabled = (currentStep <= 1);
+            nextBtn.disabled = (currentStep >= 5);
+            // 缴费按钮只在第4步显示
+            if (currentStep === 4) {
+                payBtn.style.display = 'inline-block';
+            } else {
+                payBtn.style.display = 'none';
+            }
+            errorMsg.textContent = '';
+        }
+
+        async function fetchStatus() {
+            try {
+                const res = await fetch('/api/report/status', { method: 'GET' });
+                const data = await res.json();
+                if (data.success) {
+                    currentStep = data.flow_step;
+                    updateSteps();
+                    if (currentStep >= 3) {
+                        await loadDormInfo();
+                    } else {
+                        dormInfo.style.display = 'none';
+                    }
+                }
+            } catch (err) {
+                console.error('获取状态失败', err);
+                updateSteps();
+            }
+        }
+
+        async function loadDormInfo() {
+            const username = "{{ current_user.username }}";
+            try {
+                const res = await fetch('/api/dorms');
+                const data = await res.json();
+                if (data.success) {
+                    let found = null;
+                    for (const dorm of data.dorms) {
+                        for (const bed of dorm.beds) {
+                            if (bed.student_id === username) {
+                                found = { dorm, bed };
+                                break;
+                            }
+                        }
+                        if (found) break;
+                    }
+                    if (found) {
+                        dormDetails.innerHTML = `宿舍楼：${found.dorm.building}<br>房间号：${found.dorm.room_number}<br>床位：${found.bed.bed_number}<br>性别限制：${found.dorm.gender_limit}`;
+                        dormInfo.style.display = 'block';
+                    } else {
+                        dormInfo.style.display = 'none';
+                    }
+                }
+            } catch (err) {
+                console.error('获取宿舍信息失败', err);
+            }
+        }
+
+        async function setStep(step) {
+            if (step < 1 || step > 5) return;
+            try {
+                const res = await fetch('/api/report/status', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ flow_step: step })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    currentStep = data.flow_step;
+                    updateSteps();
+                    if (currentStep >= 3) await loadDormInfo();
+                    else dormInfo.style.display = 'none';
+                } else {
+                    errorMsg.textContent = data.message || '操作失败';
+                }
+            } catch (err) {
+                errorMsg.textContent = '网络错误，请稍后重试';
+            }
+        }
+
+        // 点击步骤圆圈
+        stepElements.forEach(stepEl => {
+            stepEl.addEventListener('click', () => {
+                const step = parseInt(stepEl.dataset.step);
+                if (step !== currentStep) setStep(step);
+            });
+        });
+
+        nextBtn.addEventListener('click', () => setStep(currentStep + 1));
+        prevBtn.addEventListener('click', () => setStep(currentStep - 1));
+
+        // 缴费按钮
+        payBtn.addEventListener('click', async () => {
+            if (!confirm('确认缴纳学费 5000 元？')) return;
+            try {
+                const res = await fetch('/api/pay', { method: 'POST' });
+                const data = await res.json();
+                if (data.success) {
+                    App.toast(data.message + '，现在可以进入最后一步', 'success');
+                    // 缴费成功后自动推进到步骤5
+                    await setStep(5);
+                } else {
+                    errorMsg.textContent = data.message || '缴费失败';
+                }
+            } catch (err) {
+                errorMsg.textContent = '网络错误';
+            }
+        });
+
+        cancelDormBtn.addEventListener('click', async () => {
+            if (!confirm('确认取消当前宿舍选择？取消后流程将回退到资格审核步骤。')) return;
+            try {
+                const res = await fetch('/api/cancel_bed', { method: 'POST' });
+                const data = await res.json();
+                if (data.success) {
+                    App.toast(data.message, 'success');
+                    await fetchStatus();
+                } else {
+                    errorMsg.textContent = data.message || '取消失败';
+                }
+            } catch (err) {
+                errorMsg.textContent = '网络错误';
+            }
+        });
+
+        fetchStatus();
+    </script>
+    <script src="/static/js/app.js"></script>
+
+</body>
+</html>

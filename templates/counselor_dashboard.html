@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>辅导员后台 - 智慧迎新</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, "Microsoft YaHei", sans-serif; background: #f5f7fa; }
+        .navbar {
+            position: fixed; top: 0; left: 0; right: 0; height: 60px;
+            background: rgba(255,255,255,0.95); backdrop-filter: blur(12px);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0 24px; z-index: 1000; flex-wrap: wrap;
+        }
+        .navbar .logo { font-size: 1.3rem; font-weight: 700; background: linear-gradient(135deg,#1a73e8,#00c9a7); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .navbar .nav-links { display: flex; gap: 6px; list-style: none; flex-wrap: wrap; }
+        .navbar .nav-links a { color: #333; font-size: 0.85rem; padding: 6px 12px; border-radius: 20px; text-decoration: none; transition: all 0.3s; }
+        .navbar .nav-links a:hover, .navbar .nav-links a.active { background: #e8f0fe; color: #1a73e8; font-weight: 500; }
+        .container { max-width: 1000px; margin: 80px auto 40px; padding: 0 20px; }
+        .page-title { font-size: 1.5rem; font-weight: 700; color: #1a73e8; margin-bottom: 20px; }
+        .info-banner { background: #e8f0fe; padding: 15px; border-radius: 12px; margin-bottom: 20px; border-left: 4px solid #1a73e8; }
+        .info-banner p { font-size: 0.95rem; color: #333; }
+        .search-bar { margin-bottom: 20px; }
+        .search-bar input { width: 100%; padding: 10px 16px; border: 2px solid #e0e0e0; border-radius: 10px; font-size: 0.95rem; }
+        .search-bar input:focus { outline: none; border-color: #1a73e8; }
+        table { width: 100%; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border-collapse: collapse; }
+        th, td { padding: 12px 10px; text-align: left; font-size: 0.9rem; border-bottom: 1px solid #f0f0f0; }
+        th { background: #f5f7fa; color: #555; font-weight: 600; }
+        tr:hover { background: #f9fafb; }
+        .status-badge { padding: 3px 8px; border-radius: 10px; font-size: 0.75rem; }
+        .step1 { background: #fff3e0; color: #e65100; }
+        .step2 { background: #e3f2fd; color: #1565c0; }
+        .step3 { background: #e8f5e9; color: #2e7d32; }
+        .step4 { background: #f3e5f5; color: #6a1b9a; }
+        .step5 { background: #e0f7fa; color: #00838f; }
+    </style>
+</head>
+<body>
+    {% set active_page = 'counselor_dashboard' %}
+    {% include '_navbar.html' %}
+
+    <div class="container">
+        <h2 class="page-title">👩‍🏫 辅导员后台 - 班级学生管理</h2>
+        <div class="info-banner">
+            <p>当前班级：<strong>{{ class_label }}</strong></p>
+            <p>您只能查看本班学生的报到情况，无法修改学生信息。</p>
+        </div>
+        <div class="search-bar">
+            <input type="text" id="searchInput" placeholder="输入学号、姓名搜索...">
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>学号</th>
+                    <th>姓名</th>
+                    <th>性别</th>
+                    <th>专业</th>
+                    <th>报到步骤</th>
+                    <th>联系电话</th>
+                </tr>
+            </thead>
+            <tbody id="studentTable"></tbody>
+        </table>
+    </div>
+
+    <script src="/static/js/app.js"></script>
+    <script>
+        let allStudents = [];
+
+        function formatStep(step) {
+            const steps = {1:'信息填报',2:'资格审核',3:'宿舍分配',4:'缴费确认',5:'报到完成'};
+            return steps[step] || step;
+        }
+
+        function renderTable(students) {
+            const tbody = document.getElementById('studentTable');
+            tbody.innerHTML = '';
+            if (students.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#999;">本班暂无学生或尚未填报</td></tr>';
+                return;
+            }
+            students.forEach(s => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${s.student_id}</td>
+                    <td>${s.name || '-'}</td>
+                    <td>${s.gender || '-'}</td>
+                    <td>${s.major || '-'}</td>
+                    <td><span class="status-badge step${s.flow_step}">${formatStep(s.flow_step)}</span></td>
+                    <td>${s.contact || '-'}</td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        async function loadStudents() {
+            try {
+                const res = await fetch('/api/counselor/students');
+                const data = await res.json();
+                if (data.success) {
+                    allStudents = data.students;
+                    renderTable(allStudents);
+                } else {
+                    App.toast('加载失败：' + (data.message || '未知错误'), 'error');
+                }
+            } catch (err) {
+                App.toast('网络错误', 'error');
+            }
+        }
+
+        document.getElementById('searchInput').addEventListener('input', () => {
+            const keyword = document.getElementById('searchInput').value.trim().toLowerCase();
+            if (!keyword) { renderTable(allStudents); return; }
+            const filtered = allStudents.filter(s =>
+                (s.student_id && s.student_id.toLowerCase().includes(keyword)) ||
+                (s.name && s.name.toLowerCase().includes(keyword))
+            );
+            renderTable(filtered);
+        });
+
+        loadStudents();
+    </script>
+</body>
+</html>

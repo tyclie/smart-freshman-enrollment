@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="initial-scale=1.0, user-scalable=no">
+    <title>校园导航 - 智慧迎新</title>
+    <style>
+        html, body { height: 100%; margin: 0; padding: 0; font-family: "微软雅黑", "Microsoft YaHei", sans-serif; }
+        #back-btn {
+            position: fixed; top: 14px; left: 14px; z-index: 1200;
+            background: #fff; color: #1a73e8; border: none; border-radius: 20px;
+            padding: 8px 16px; font-size: 14px; cursor: pointer;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.25); transition: background .2s;
+        }
+        #back-btn:hover { background: #e8f0fe; }
+        #map-container { width: 100%; height: 70%; }
+        #route-panel { width: 100%; height: 30%; overflow-y: auto; padding: 10px; box-sizing: border-box; }
+        .location-btn {
+            display: inline-block; margin: 4px; padding: 6px 12px;
+            background: #4a90d9; color: #fff; border: none;
+            border-radius: 4px; cursor: pointer; font-size: 13px;
+        }
+        .location-btn:hover { background: #357abd; }
+        #route-info { margin-top: 8px; font-size: 13px; color: #333; line-height: 1.5; }
+    </style>
+</head>
+<body>
+    <button id="back-btn" type="button" onclick="goBack()">← 返回主面板</button>
+    <div id="map-container"></div>
+    <div id="route-panel">
+        <div id="location-buttons"></div>
+        <div style="margin: 8px 0;">
+            <label>出行方式：</label>
+            <select id="travel-mode">
+                <option value="driving">驾车</option>
+                <option value="walking">步行</option>
+                <option value="riding">骑行</option>
+            </select>
+            <button class="location-btn" id="btn-route">开始规划</button>
+            <button class="location-btn" id="btn-clear">清除路线</button>
+        </div>
+        <div id="route-info">请选择起点和终点</div>
+    </div>
+
+    <script>
+    // 全局错误提示：任何脚本错误都直接显示出来，避免“没有反应”或看不懂控制台报错
+    window.addEventListener('error', function (e) {
+        var el = document.getElementById('route-info');
+        var info = (e.message || '未知错误') + (e.lineno ? '（navigation.html:' + e.lineno + '）' : '');
+        if (el) { el.innerHTML = '⚠️ 脚本错误：' + info; el.style.color = '#d93025'; }
+        console.error('[navigation.html]', e.message, e.filename, e.lineno);
+    });
+
+    var map = null;
+    var startPoint = null;
+    var endPoint = null;
+    var startName = '';
+    var endName = '';
+    var currentRoute = null;
+    var markers = [];
+    var locationsData = [];
+    var MODE_LABEL = { driving: '驾车', walking: '步行', riding: '骑行' };
+
+    function goBack() {
+        if (window.history.length > 1) { window.history.back(); } 
+        else { window.location.href = '/dashboard'; }
+    }
+
+    function setStatus(msg, isError) {
+        var el = document.getElementById('route-info');
+        if (!el) return;
+        el.innerHTML = msg;
+        el.style.color = isError ? '#d93025' : '#333';
+    }
+
+    fetch('/api/navigation')
+        .then(function (res) { return res.json(); })
+        .then(function (data) {
+            if (!data.success) { setStatus('获取导航数据失败', true); return; }
+            locationsData = data.locations || [];
+            loadBaiduMap(data.ak);
+        })
+        .catch(function (err) {
+            console.error('请求导航数据失败:', err);
+            setStatus('无法获取导航数据，请检查网络', true);
+        });
+
+    function loadBaiduMap(ak) {
+        if (!ak) { setStatus('未配置百度地图 AK', true); return; }
+        window.onBMapLoaded = function () {
+            try { initMap(locationsData); } 
+            catch (e) { console.error(e); setStatus('地图初始化失败：' + e.message, true); }
+        };
+        if (window.BMap && window.BMap.Map) { window.onBMapLoaded(); return; }
+        var script = document.createElement('script');
+        script.src = 'https://api.map.baidu.com/api?v=3.0&ak=' + encodeURIComponent(ak) + '&callback=onBMapLoaded';
+        script.onerror = function () { setStatus('百度地图脚本加载失败，请检查网络', true); };
+        document.head.appendChild(script);
+        setTimeout(function () {
+            if (!window.BMap || !window.BMap.Map) {
+                setStatus('地图加载超时：请确认百度地图 AK 有效，且已配置 Referer 白名单', true);
+            }
+        }, 10000);
+    }
+
+    function initMap(locations) {
+        map = new BMap.Map('map-container', { enableMapClick: false });
+        var first = (locations && locations[0]) || { lng: 116.3075, lat: 39.9945 };
+        map.centerAndZoom(new BMap.Point(first.lng, first.lat), 17);
+        map.enableScrollWheelZoom(true);
+        map.addControl(new BMap.NavigationControl());
+        map.addControl(new BMap.ScaleControl());
+        markers = [];
+        locations.forEach(function (loc) { addMarker(loc); });
+        renderLocationButtons(locations);
+        document.getElementById('btn-route').onclick = planRoute;
+        document.getElementById('btn-clear').onclick = clearRoute;
+        setStatus('请选择起点和终点');
+    }
+
+    function addMarker(loc) {
+        var point = new BMap.Point(loc.lng, loc.lat);
+        var marker = new BMap.Marker(point);
+        map.addOverlay(marker);
+        markers.push({ marker: marker, location: loc });
+        var opts = { width: 240, height: 90, title: loc.name };
+        var infoWindow = new BMap.InfoWindow(
+            '开放时间：' + (loc.open || '未标注') +
+            '<br><a href="javascript:void(0)" onclick="setAsStart(' + loc.id + ')">设为起点</a> ' +
+            '<a href="javascript:void(0)" onclick="setAsEnd(' + loc.id + ')">设为终点</a>', opts
+        );
+        marker.addEventListener('click', function () { map.openInfoWindow(infoWindow, point); });
+    }
+
+    function renderLocationButtons(locations) {
+        var container = document.getElementById('location-buttons');
+        var html = '<strong>选择起点：</strong><br>';
+        locations.forEach(function (loc) {
+            html += '<button class="location-btn" onclick="setAsStart(' + loc.id + ')">' + loc.name + '</button>';
+        });
+        html += '<br><strong>选择终点：</strong><br>';
+        locations.forEach(function (loc) {
+            html += '<button class="location-btn" onclick="setAsEnd(' + loc.id + ')">' + loc.name + '</button>';
+        });
+        container.innerHTML = html;
+    }
+
+    function setAsStart(id) {
+        var loc = findLocation(id);
+        if (!loc) return;
+        startPoint = new BMap.Point(loc.lng, loc.lat);
+        startName = loc.name;
+        clearRouteLines();
+        updateRouteInfo();
+    }
+
+    function setAsEnd(id) {
+        var loc = findLocation(id);
+        if (!loc) return;
+        endPoint = new BMap.Point(loc.lng, loc.lat);
+        endName = loc.name;
+        clearRouteLines();
+        updateRouteInfo();
+    }
+
+    function findLocation(id) {
+        for (var i = 0; i < markers.length; i++) {
+            if (markers[i].location.id === id) return markers[i].location;
+        }
+        return null;
+    }
+
+    function updateRouteInfo() {
+        var text = '';
+        if (startName) text += '起点：' + startName;
+        if (endName) text += (text ? ' → ' : '') + '终点：' + endName;
+        if (text) { setStatus(text + '　（点击“开始规划”生成路线）'); } 
+        else { setStatus('请选择起点和终点'); }
+    }
+
+    function planRoute() {
+        if (!startPoint || !endPoint) { alert('请先选择起点和终点'); return; }
+        if (typeof startPoint.equals === 'function' && startPoint.equals(endPoint)) {
+            alert('起点和终点不能相同，请重新选择'); return;
+        }
+        var origin = startPoint;
+        var destination = endPoint;
+        var mode = document.getElementById('travel-mode').value;
+        clearRouteLines();
+        setStatus('正在规划' + (MODE_LABEL[mode] || '') + '路线，请稍候...');
+        var opts = {
+            renderOptions: { map: map, autoViewport: true },
+            onSearchComplete: function (results) { handleRouteResult(mode, results); }
+        };
+        try {
+            if (mode === 'walking') { currentRoute = new BMap.WalkingRoute(map, opts); } 
+            else if (mode === 'riding') { currentRoute = new BMap.RidingRoute(map, opts); } 
+            else { currentRoute = new BMap.DrivingRoute(map, opts); }
+        } catch (err) {
+            setStatus('无法创建路线规划对象：' + err.message + '<br>请确认百度地图 JS API（含路线规划服务）已正常加载', true);
+            return;
+        }
+        if (!currentRoute || typeof currentRoute.search !== 'function') {
+            setStatus('当前百度地图 API 不支持路线规划，请检查 AK 与 API 版本', true);
+            return;
+        }
+        currentRoute.search(origin, destination);
+    }
+
+    function handleRouteResult(mode, results) {
+        var status = 0;
+        if (currentRoute && typeof currentRoute.getStatus === 'function') { status = currentRoute.getStatus(); }
+        if (status !== 0 || !results) {
+            setStatus('路线规划失败（状态码 ' + status + '）。<br>请确认百度地图 AK 已开通路线规划服务权限。', true);
+            return;
+        }
+        var detail = '';
+        try {
+            var plan = results.getPlan(0);
+            if (plan && typeof plan.getDistance === 'function') {
+                var d = plan.getDistance(true);
+                if (d) detail += '全程约 ' + d;
+            }
+            if (plan && typeof plan.getDuration === 'function') {
+                var t = plan.getDuration(true);
+                if (t) detail += (detail ? '，' : '') + '预计 ' + t;
+            }
+        } catch (e) { console.warn('解析路线详情失败:', e); }
+        var summary = (startName || '起点') + ' → ' + (endName || '终点');
+        setStatus('✅ ' + summary + '（' + (MODE_LABEL[mode] || '') + '）' + (detail ? '<br>' + detail : '<br>路线规划完成'));
+    }
+
+    function clearRouteLines() {
+        if (currentRoute) {
+            try { currentRoute.clearResults(); } catch (e) { console.warn(e); }
+            currentRoute = null;
+        }
+    }
+
+    function clearRoute() {
+        clearRouteLines();
+        startPoint = null; endPoint = null; startName = ''; endName = '';
+        updateRouteInfo();
+    }
+    </script>
+    <script src="/static/js/app.js"></script>
+</body>
+</html>

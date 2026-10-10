@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D校园 - 智慧迎新</title>
+    <style>
+        :root {
+            --campus-primary: #1a73e8;
+            --campus-accent: #00c9a7;
+            --campus-panel: rgba(255, 255, 255, 0.94);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { width: 100%; height: 100%; overflow: hidden; font-family: -apple-system, "Microsoft YaHei", "Segoe UI", sans-serif; }
+        #campus3d-container { position: fixed; inset: 0; background: #87ceeb; }
+        #campus3d-container canvas { display: block; }
+
+        .campus3d-loading,
+        .campus3d-error {
+            position: absolute; inset: 0; z-index: 500; display: flex;
+            align-items: center; justify-content: center;
+            background: linear-gradient(135deg, #0b5dd7, #00c9a7);
+            color: white; text-align: center;
+        }
+        .campus3d-error { background: #263238; display: none; }
+        .campus3d-loading-card,
+        .campus3d-error-card {
+            background: rgba(255,255,255,0.94); color: #263238;
+            border-radius: 22px; padding: 34px 40px; max-width: 420px;
+            box-shadow: 0 24px 80px rgba(0,0,0,0.25);
+        }
+        .campus3d-error-icon { font-size: 3rem; margin-bottom: 12px; }
+        .campus3d-error-card h2 { color: #1a73e8; margin-bottom: 10px; font-size: 1.4rem; }
+        .campus3d-error-card p { color: #555; line-height: 1.7; margin-bottom: 18px; }
+        .campus3d-error-card button,
+        .campus3d-error-card a {
+            display: inline-block; margin: 5px; padding: 10px 18px;
+            border-radius: 30px; border: none; cursor: pointer;
+            background: linear-gradient(135deg,#1a73e8,#4a90e2); color: white;
+            text-decoration: none; font-size: 0.9rem;
+        }
+        .campus3d-error-card a { background: #e0e0e0; color: #333; }
+        .campus3d-spinner {
+            width: 48px; height: 48px; margin: 0 auto 18px;
+            border: 5px solid rgba(26,115,232,0.15); border-top-color: #1a73e8;
+            border-radius: 50%; animation: campus-spin 0.8s linear infinite;
+        }
+        @keyframes campus-spin { to { transform: rotate(360deg); } }
+
+        .campus3d-toolbar {
+            position: absolute; top: 14px; left: 14px; right: 14px; z-index: 300;
+            display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+            padding: 8px 10px; border-radius: 16px;
+            background: rgba(255,255,255,0.88); backdrop-filter: blur(14px);
+            box-shadow: 0 6px 24px rgba(0,0,0,0.12);
+            opacity: 0; transform: translateY(-12px); transition: all .35s ease;
+        }
+        .campus3d-toolbar.is-visible { opacity: 1; transform: translateY(0); }
+        .campus3d-back {
+            color: #1a73e8; text-decoration: none; font-weight: 600;
+            padding: 8px 13px; border-radius: 12px; background: #e8f0fe; white-space: nowrap;
+        }
+        .campus3d-title { font-size: 1rem; font-weight: 700; color: #263238; margin-right: auto; }
+        .campus3d-tools { display: flex; gap: 6px; flex-wrap: wrap; }
+        .campus3d-btn {
+            border: 1px solid #e0e5ea; background: white; color: #46505c;
+            padding: 8px 12px; border-radius: 12px; cursor: pointer;
+            font-size: 0.82rem; transition: all .2s ease; white-space: nowrap;
+        }
+        .campus3d-btn:hover { border-color: #1a73e8; color: #1a73e8; transform: translateY(-1px); }
+        .campus3d-btn.is-active { background: #1a73e8; border-color: #1a73e8; color: white; }
+
+        .campus3d-help {
+            position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%);
+            z-index: 250; background: rgba(24,32,40,0.7); color: white;
+            padding: 8px 14px; border-radius: 999px; font-size: 0.78rem;
+            pointer-events: none; backdrop-filter: blur(8px); max-width: calc(100vw - 32px);
+            text-align: center;
+        }
+
+        .campus3d-label {
+            color: white; background: rgba(26,115,232,0.92); padding: 4px 10px;
+            border-radius: 12px; font-size: 12px; white-space: nowrap;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.15); pointer-events: none;
+        }
+
+        .campus3d-info {
+            position: absolute; left: 18px; bottom: 64px; z-index: 300;
+            width: 290px; background: var(--campus-panel); backdrop-filter: blur(14px);
+            border-radius: 16px; box-shadow: 0 12px 34px rgba(0,0,0,0.2);
+            padding: 18px; display: none; animation: campus-info-in .25s ease;
+        }
+        @keyframes campus-info-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .campus3d-info-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+        .campus3d-info-name { color: #1a73e8; font-size: 1.15rem; font-weight: 700; }
+        .campus3d-info-close {
+            border: none; background: #eef2f6; color: #5f6673; border-radius: 50%;
+            width: 26px; height: 26px; cursor: pointer; flex: 0 0 auto;
+        }
+        .campus3d-info-desc { color: #4d5968; font-size: 0.86rem; margin-top: 7px; line-height: 1.5; }
+        .campus3d-info-open { color: #8a94a0; font-size: 0.8rem; margin-top: 8px; }
+        .campus3d-info-go {
+            display: inline-block; margin-top: 12px; padding: 7px 13px; border-radius: 20px;
+            background: #1a73e8; color: white; border: none; cursor: pointer; font-size: 0.82rem;
+        }
+
+        .campus3d-search-open {
+            position: absolute; top: 78px; right: 18px; z-index: 280;
+            border: none; background: white; box-shadow: 0 6px 20px rgba(0,0,0,0.16);
+            padding: 9px 13px; border-radius: 12px; cursor: pointer; font-size: 0.85rem;
+        }
+        .campus3d-search-panel {
+            position: absolute; top: 78px; right: 18px; z-index: 320;
+            width: 320px; max-width: calc(100vw - 36px); background: var(--campus-panel);
+            border-radius: 16px; box-shadow: 0 16px 44px rgba(0,0,0,0.2);
+            padding: 14px; display: none;
+        }
+        .campus3d-search-panel.is-open { display: block; }
+        .campus3d-search-top { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; }
+        .campus3d-search-input {
+            flex: 1; border: 1px solid #dfe4e9; background: #f7f9fc; border-radius: 10px;
+            padding: 9px 12px; font-size: 0.9rem;
+        }
+        .campus3d-search-input:focus { outline: none; border-color: #1a73e8; }
+        .campus3d-search-close { border: none; background: #eef2f6; border-radius: 10px; padding: 8px 11px; cursor: pointer; }
+        .campus3d-search-list { display: flex; flex-direction: column; gap: 6px; max-height: 46vh; overflow-y: auto; }
+        .campus3d-search-item {
+            display: flex; align-items: center; gap: 9px; width: 100%;
+            border: none; background: #f7f9fc; border-radius: 10px; padding: 9px 11px;
+            cursor: pointer; text-align: left; transition: background .2s;
+        }
+        .campus3d-search-item:hover { background: #e8f0fe; }
+        .campus3d-search-item span:nth-child(2) { color: #263238; font-weight: 600; font-size: 0.9rem; }
+        .campus3d-search-item small { margin-left: auto; color: #8a94a0; font-size: 0.75rem; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .campus3d-search-dot { width: 10px; height: 10px; border-radius: 50%; flex: 0 0 auto; }
+
+        @media (max-width: 680px) {
+            .campus3d-title { display: none; }
+            .campus3d-toolbar { top: 8px; left: 8px; right: 8px; }
+            .campus3d-search-open { top: 68px; right: 10px; }
+            .campus3d-search-panel { top: 68px; right: 10px; }
+            .campus3d-info { left: 12px; right: 12px; width: auto; bottom: 56px; }
+            .campus3d-help { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div id="campus3d-container">
+        <div class="campus3d-loading" id="campus3d-loading">
+            <div class="campus3d-loading-card">
+                <div class="campus3d-spinner"></div>
+                <h2 style="color:#1a73e8;font-size:1.3rem;">正在构建 3D 校园</h2>
+                <p style="color:#555;margin-top:8px;">加载三维引擎与校园建筑数据…</p>
+            </div>
+        </div>
+        <div class="campus3d-error" id="campus3d-error"></div>
+
+        <header class="campus3d-toolbar" id="campus3d-toolbar">
+            <a class="campus3d-back" href="/dashboard">← 返回</a>
+            <div class="campus3d-title">🏫 3D 校园漫游</div>
+            <div class="campus3d-tools">
+                <button class="campus3d-btn" id="campus3d-reset" type="button">🎯 复位视角</button>
+                <button class="campus3d-btn is-active" id="campus3d-route" type="button">🛣️ 路线</button>
+                <button class="campus3d-btn is-active" id="campus3d-labels" type="button">🏷️ 标签</button>
+                <button class="campus3d-btn" id="campus3d-night" type="button">🌙 夜景</button>
+                <button class="campus3d-btn" id="campus3d-tour" type="button">🎥 自动漫游</button>
+                <button class="campus3d-btn" id="campus3d-search-open" type="button">🔍 地点</button>
+            </div>
+        </header>
+
+        <div class="campus3d-search-panel" id="campus3d-search-panel">
+            <div class="campus3d-search-top">
+                <input class="campus3d-search-input" id="campus3d-search-input" type="text" placeholder="搜索教学楼、图书馆、宿舍…">
+                <button class="campus3d-search-close" id="campus3d-search-close" type="button">✕</button>
+            </div>
+            <div class="campus3d-search-list" id="campus3d-search-list"></div>
+        </div>
+
+        <div class="campus3d-info" id="campus3d-info">
+            <div class="campus3d-info-head">
+                <div class="campus3d-info-name"></div>
+                <button class="campus3d-info-close" id="campus3d-info-close" type="button">✕</button>
+            </div>
+            <div class="campus3d-info-desc"></div>
+            <div class="campus3d-info-open"></div>
+            <button class="campus3d-info-go" data-action="go" type="button">前往此处 →</button>
+        </div>
+
+        <div class="campus3d-help">🖱️ 左键拖拽旋转 ｜ 右键拖拽平移 ｜ 滚轮缩放 ｜ WASD 移动 ｜ 点击建筑查看详情</div>
+    </div>
+
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "/static/js/vendor/three.module.js",
+            "three/addons/": "/static/js/vendor/"
+        }
+    }
+    </script>
+
+    <script type="module" src="/static/js/three-scene.js"></script>
+    <script type="module">
+        window.Campus3D.init({
+            containerId: 'campus3d-container',
+            loadingId: 'campus3d-loading',
+            errorId: 'campus3d-error',
+            toolbarId: 'campus3d-toolbar',
+            infoId: 'campus3d-info',
+            searchId: 'campus3d-search-panel',
+            searchInputId: 'campus3d-search-input',
+            searchListId: 'campus3d-search-list'
+        });
+    </script>
+    <script>
+        // 若模块加载失败，给出用户可读的提示。
+        window.addEventListener('error', function (e) {
+            if (e.filename && e.filename.indexOf('three-scene.js') !== -1) {
+                var box = document.getElementById('campus3d-error');
+                var loading = document.getElementById('campus3d-loading');
+                if (loading) loading.style.display = 'none';
+                if (box) {
+                    box.style.display = 'flex';
+                    box.innerHTML = '<div class="campus3d-error-card"><div class="campus3d-error-icon">⚠️</div>' +
+                        '<h2>3D 场景加载失败</h2><p>浏览器未能加载本地三维引擎。请刷新页面，或检查 static/js/vendor 目录是否完整。</p>' +
+                        '<button type="button" onclick="location.reload()">重新加载</button>' +
+                        '<a href="/dashboard">返回主面板</a></div>';
+                }
+            }
+        }, true);
+        setTimeout(function () {
+            if (!window.Campus3D) {
+                var box = document.getElementById('campus3d-error');
+                var loading = document.getElementById('campus3d-loading');
+                if (loading) loading.style.display = 'none';
+                if (box) {
+                    box.style.display = 'flex';
+                    box.innerHTML = '<div class="campus3d-error-card"><div class="campus3d-error-icon">⚠️</div>' +
+                        '<h2>3D 场景加载超时</h2><p>三维引擎加载时间过长。请刷新页面重试，或检查 static/js/vendor 目录是否完整。</p>' +
+                        '<button type="button" onclick="location.reload()">重新加载</button>' +
+                        '<a href="/dashboard">返回主面板</a></div>';
+                }
+            }
+        }, 9000);
+    </script>
+</body>
+</html>

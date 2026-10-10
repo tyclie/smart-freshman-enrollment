@@ -1,0 +1,32 @@
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# ---- 虚拟环境 ----
+.venv/
+venv/
+env/
+
+# ---- 本地配置与密钥 ----
+.env
+*.local
+
+# ---- 数据库 ----
+# demo.db 作为演示数据随仓库提供，其余本地数据库文件不提交
+*.db
+*.sqlite
+*.sqlite3
+!demo.db
+
+# ---- 运行时产物 ----
+uploads/*
+!uploads/.gitkeep
+*.log
+
+# ---- 编辑器 / 系统 ----
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

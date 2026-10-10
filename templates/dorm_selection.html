@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>宿舍选择 - 智慧迎新</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, "Microsoft YaHei", sans-serif; background: #f5f7fa; }
+        .navbar {
+            position: fixed; top: 0; left: 0; right: 0; height: 60px;
+            background: rgba(255,255,255,0.95); backdrop-filter: blur(12px);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0 24px; z-index: 1000; flex-wrap: wrap;
+        }
+        .navbar .logo { font-size: 1.3rem; font-weight: 700; background: linear-gradient(135deg,#1a73e8,#00c9a7); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .navbar .nav-links { display: flex; gap: 6px; list-style: none; flex-wrap: wrap; }
+        .navbar .nav-links a { color: #333; font-size: 0.85rem; padding: 6px 12px; border-radius: 20px; text-decoration: none; transition: all 0.3s; }
+        .navbar .nav-links a:hover, .navbar .nav-links a.active { background: #e8f0fe; color: #1a73e8; font-weight: 500; }
+        .container { max-width: 1200px; margin: 80px auto 40px; padding: 0 20px; }
+        .page-title { font-size: 1.5rem; font-weight: 700; color: #1a73e8; margin-bottom: 20px; }
+        .search-bar { display: flex; gap: 10px; margin-bottom: 20px; }
+        .search-bar input { flex: 1; padding: 10px 16px; border: 2px solid #e0e0e0; border-radius: 10px; font-size: 0.95rem; }
+        .search-bar input:focus { outline: none; border-color: #1a73e8; }
+        .dorm-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+        .dorm-card { background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); padding: 16px; transition: all 0.3s; }
+        .dorm-card:hover { box-shadow: 0 8px 20px rgba(0,0,0,0.12); }
+        .dorm-card h3 { font-size: 1rem; margin-bottom: 10px; color: #333; }
+        .gender-tag { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.75rem; margin-left: 6px; }
+        .female { background: #fce4ec; color: #c2185b; }
+        .male { background: #e3f2fd; color: #1565c0; }
+        .bed-row { display: flex; flex-wrap: wrap; gap: 8px; }
+        .bed-btn {
+            padding: 6px 12px; border: none; border-radius: 8px; cursor: pointer;
+            font-size: 0.85rem; transition: all 0.2s;
+        }
+        .bed-free { background: #c8e6c9; color: #2e7d32; }
+        .bed-free:hover { background: #a5d6a7; }
+        .bed-occupied { background: #e0e0e0; color: #999; cursor: not-allowed; }
+        .bed-selected { background: #1a73e8; color: white; }
+        .my-dorm-info { background: #e8f0fe; padding: 15px; border-radius: 10px; margin-bottom: 20px; border-left: 4px solid #1a73e8; }
+    </style>
+</head>
+<body>
+    {% set active_page = 'dorm_selection' %}
+    {% include '_navbar.html' %}
+
+    <div class="container">
+        <h2 class="page-title">🛏️ 宿舍选择</h2>
+        <div class="my-dorm-info" id="myDormInfo" style="display:none;">
+            <strong>当前已选宿舍</strong>
+            <p id="myDormDetails"></p>
+            <button class="btn btn-secondary" id="cancelDormBtn">取消选择</button>
+        </div>
+        <div class="search-bar">
+            <input type="text" id="searchInput" placeholder="输入宿舍楼或房间号搜索，例如：17栋 或 6401">
+        </div>
+        <div class="dorm-grid" id="dormGrid"></div>
+    </div>
+
+    <script>
+        const username = "{{ current_user.username }}";
+        let allDorms = [];
+        let currentBedId = null;
+
+        const dormGrid = document.getElementById('dormGrid');
+        const searchInput = document.getElementById('searchInput');
+        const myDormInfo = document.getElementById('myDormInfo');
+        const myDormDetails = document.getElementById('myDormDetails');
+        const cancelDormBtn = document.getElementById('cancelDormBtn');
+
+        async function fetchDorms() {
+            try {
+                const res = await fetch('/api/dorms');
+                const data = await res.json();
+                if (data.success) {
+                    allDorms = data.dorms;
+                    // 查找当前已选床位
+                    for (const dorm of allDorms) {
+                        for (const bed of dorm.beds) {
+                            if (bed.student_id === username) {
+                                currentBedId = bed.bed_id;
+                                myDormDetails.innerHTML = `${dorm.building} ${dorm.room_number} ${bed.bed_number}`;
+                                myDormInfo.style.display = 'block';
+                                break;
+                            }
+                        }
+                        if (currentBedId) break;
+                    }
+                    renderDorms(allDorms);
+                }
+            } catch (err) {
+                console.error('获取宿舍失败', err);
+            }
+        }
+
+        function renderDorms(dorms) {
+            dormGrid.innerHTML = '';
+            dorms.forEach(dorm => {
+                const card = document.createElement('div');
+                card.className = 'dorm-card';
+                const genderClass = dorm.gender_limit === '女' ? 'female' : 'male';
+                card.innerHTML = `
+                    <h3>${dorm.building} ${dorm.room_number}
+                        <span class="gender-tag ${genderClass}">${dorm.gender_limit}生宿舍</span>
+                    </h3>
+                `;
+                const bedRow = document.createElement('div');
+                bedRow.className = 'bed-row';
+                dorm.beds.forEach(bed => {
+                    const btn = document.createElement('button');
+                    btn.className = 'bed-btn';
+                    if (bed.student_id === username) {
+                        btn.classList.add('bed-selected');
+                        btn.textContent = bed.bed_number + ' (我的)';
+                        btn.disabled = true;
+                    } else if (bed.status === 'occupied') {
+                        btn.classList.add('bed-occupied');
+                        btn.textContent = bed.bed_number + ' (已占用)';
+                        btn.disabled = true;
+                    } else {
+                        btn.classList.add('bed-free');
+                        btn.textContent = bed.bed_number;
+                        btn.addEventListener('click', () => selectBed(bed.bed_id));
+                    }
+                    bedRow.appendChild(btn);
+                });
+                card.appendChild(bedRow);
+                dormGrid.appendChild(card);
+            });
+        }
+
+        async function selectBed(bedId) {
+            if (!confirm('确认选择该床位？')) return;
+            try {
+                const res = await fetch('/api/select_bed', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ bed_id: bedId })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    App.toast(data.message + '，报到流程已更新到宿舍分配步骤', 'success');
+                    location.reload();
+                } else {
+                    App.toast('选择失败：' + (data.message || '未知错误'), 'error');
+                }
+            } catch (err) {
+                App.toast('网络错误，请稍后重试', 'error');
+            }
+        }
+
+        cancelDormBtn.addEventListener('click', async () => {
+            if (!confirm('确认取消选择当前宿舍？取消后流程将回退到资格审核步骤。')) return;
+            try {
+                const res = await fetch('/api/cancel_bed', { method: 'POST' });
+                const data = await res.json();
+                if (data.success) {
+                    App.toast(data.message, 'success');
+                    location.reload();
+                } else {
+                    App.toast('取消失败：' + (data.message || '未知错误'), 'error');
+                }
+            } catch (err) {
+                App.toast('网络错误', 'error');
+            }
+        });
+
+        searchInput.addEventListener('input', () => {
+            const keyword = searchInput.value.trim().toLowerCase();
+            if (!keyword) {
+                renderDorms(allDorms);
+                return;
+            }
+            const filtered = allDorms.filter(dorm =>
+                dorm.building.toLowerCase().includes(keyword) ||
+                dorm.room_number.toLowerCase().includes(keyword)
+            );
+            renderDorms(filtered);
+        });
+
+        fetchDorms();
+    </script>
+    <script src="/static/js/app.js"></script>
+</body>
+</html>

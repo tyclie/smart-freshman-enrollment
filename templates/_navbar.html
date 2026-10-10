@@ -1,0 +1,25 @@
+{% set active = active_page | default('') %}
+<nav class="navbar" aria-label="主导航">
+    <div class="navbar-inner">
+        <a class="logo" href="/dashboard">🚀 智慧迎新</a>
+        <button class="nav-toggle" type="button" aria-label="切换菜单" aria-expanded="false">
+            <span></span><span></span><span></span>
+        </button>
+        <ul class="nav-links" id="navLinks">
+            <li><a class="{{ 'active' if active == 'dashboard' else '' }}" href="/dashboard">首页</a></li>
+            <li><a class="{{ 'active' if active == 'ocr_upload' else '' }}" href="/ocr_upload">智能填报</a></li>
+            <li><a class="{{ 'active' if active == 'navigation' else '' }}" href="/navigation">校园导航</a></li>
+            <li><a class="{{ 'active' if active == 'register_flow' else '' }}" href="/register_flow">报到流程</a></li>
+            <li><a class="{{ 'active' if active == 'dorm_selection' else '' }}" href="/dorm_selection">宿舍选择</a></li>
+            <li><a class="{{ 'active' if active == 'campus3d' else '' }}" href="/campus3d">3D校园</a></li>
+            <li><a class="{{ 'active' if active == 'chat' else '' }}" href="/chat">聊天室</a></li>
+            {% if current_user and current_user.role == 'admin' %}
+            <li><a class="{{ 'active' if active == 'admin_dashboard' else '' }}" href="/admin_dashboard">管理后台</a></li>
+            {% endif %}
+            {% if current_user and current_user.role == 'counselor' %}
+            <li><a class="{{ 'active' if active == 'counselor_dashboard' else '' }}" href="/counselor_dashboard">辅导员</a></li>
+            {% endif %}
+            <li><a href="/logout" class="logout-link">退出</a></li>
+        </ul>
+    </div>
+</nav>

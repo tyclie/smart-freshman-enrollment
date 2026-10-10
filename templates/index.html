@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智慧迎新 - 登录</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        :root {
+            --login-primary: #1a73e8;
+            --login-accent: #00c9a7;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #0b5dd7 0%, #4a90e2 46%, #00c9a7 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            font-family: -apple-system, "Microsoft YaHei", "Segoe UI", sans-serif;
+            position: relative;
+            overflow-x: hidden;
+        }
+        body::before,
+        body::after {
+            content: '';
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(2px);
+            opacity: 0.28;
+            pointer-events: none;
+        }
+        body::before { width: 420px; height: 420px; background: white; top: -140px; right: -100px; }
+        body::after { width: 520px; height: 520px; background: white; bottom: -200px; left: -160px; }
+        .login-shell { position: relative; z-index: 1; width: 100%; max-width: 880px; display: flex; gap: 0; }
+        .login-brand {
+            flex: 1; color: white; padding: 48px 36px; display: flex; flex-direction: column;
+            justify-content: center; min-height: 480px;
+        }
+        .login-brand h1 { font-size: 2.8rem; font-weight: 800; letter-spacing: 1px; }
+        .login-brand .tagline { margin-top: 12px; font-size: 1.1rem; opacity: 0.92; line-height: 1.8; }
+        .login-brand .brand-points { margin-top: 32px; display: flex; flex-direction: column; gap: 16px; }
+        .login-brand .brand-point { display: flex; align-items: center; gap: 12px; font-size: 0.95rem; opacity: 0.96; }
+        .brand-point .dot { width: 34px; height: 34px; border-radius: 12px; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; }
+        .login-card {
+            width: 420px; background: rgba(255,255,255,0.96); border-radius: 26px;
+            padding: 38px; box-shadow: 0 28px 80px rgba(0,0,0,0.28);
+            backdrop-filter: blur(20px);
+        }
+        .login-card h2 { font-size: 1.7rem; color: #1a73e8; margin-bottom: 8px; }
+        .login-card .subtitle { color: #7f8c8d; font-size: 0.92rem; margin-bottom: 26px; }
+        .form-group { margin-bottom: 18px; }
+        .form-group label { display: block; margin-bottom: 8px; font-weight: 600; color: #333; font-size: 0.92rem; }
+        .input-wrap { position: relative; }
+        .input-wrap input {
+            width: 100%; padding: 13px 46px 13px 16px; border: 2px solid #e0e0e0; border-radius: 12px;
+            font-size: 0.98rem; background: #fafafa; transition: all .25s;
+        }
+        .input-wrap input:focus { outline: none; border-color: #1a73e8; background: white; box-shadow: 0 0 0 4px rgba(26,115,232,0.1); }
+        .password-toggle {
+            position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+            border: none; background: transparent; cursor: pointer; color: #7f8c8d; font-size: 0.85rem;
+        }
+        .btn-login {
+            width: 100%; padding: 14px; border: none; border-radius: 30px; cursor: pointer;
+            background: linear-gradient(135deg, #1a73e8, #4a90e2); color: white;
+            font-size: 1.05rem; font-weight: 700; letter-spacing: 2px;
+            box-shadow: 0 8px 22px rgba(26,115,232,0.35); transition: all .25s;
+        }
+        .btn-login:hover { transform: translateY(-2px); box-shadow: 0 12px 28px rgba(26,115,232,0.45); }
+        .btn-login:active { transform: translateY(0); }
+        .error-msg { color: #ea4335; text-align: center; margin-top: 12px; font-size: 0.85rem; min-height: 20px; }
+        .quick-login { margin-top: 20px; padding-top: 18px; border-top: 1px solid #eef1f5; }
+        .quick-login p { font-size: 0.78rem; color: #9aa3ac; margin-bottom: 10px; }
+        .quick-login button {
+            border: 1px solid #dfe5ea; background: #f7f9fc; color: #4d5968; border-radius: 20px;
+            padding: 7px 11px; margin: 0 5px 7px 0; cursor: pointer; font-size: 0.8rem; transition: all .2s;
+        }
+        .quick-login button:hover { border-color: #1a73e8; color: #1a73e8; background: #e8f0fe; }
+        @media (max-width: 760px) {
+            .login-shell { flex-direction: column; }
+            .login-brand { min-height: auto; padding: 24px 8px; }
+            .login-brand h1 { font-size: 2.1rem; }
+            .brand-points { display: none; }
+            .login-card { width: 100%; padding: 30px 24px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="login-shell">
+        <section class="login-brand">
+            <h1>🚀 智慧迎新</h1>
+            <p class="tagline">新生报到一站式服务平台<br>让入学更简单、更清晰、更有温度</p>
+            <div class="brand-points">
+                <div class="brand-point"><span class="dot">📝</span>智能识别，快速填报</div>
+                <div class="brand-point"><span class="dot">🛏️</span>在线选宿，床位可视</div>
+                <div class="brand-point"><span class="dot">🗺️</span>校园导航与 3D 漫游</div>
+            </div>
+        </section>
+        <section class="login-card">
+            <h2>欢迎登录</h2>
+            <p class="subtitle">请使用你的迎新账号登录</p>
+            <form id="loginForm" autocomplete="off">
+                <div class="form-group">
+                    <label for="username">账号</label>
+                    <div class="input-wrap">
+                        <input type="text" id="username" name="username" placeholder="请输入学号或账号" value="2024001" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="password">密码</label>
+                    <div class="input-wrap">
+                        <input type="password" id="password" name="password" placeholder="请输入密码" value="123456" required>
+                        <button type="button" class="password-toggle" id="passwordToggle">显示</button>
+                    </div>
+                </div>
+                <button type="submit" class="btn-login" id="loginBtn">登 录</button>
+                <div class="error-msg" id="errorMsg"></div>
+            </form>
+            <div class="quick-login">
+                <p>演示账号快捷填充</p>
+                <button type="button" data-account="2024001" data-password="123456">学生</button>
+                <button type="button" data-account="admin" data-password="admin123">管理员</button>
+                <button type="button" data-account="cs1" data-password="123456">辅导员</button>
+            </div>
+        </section>
+    </div>
+
+    <script src="/static/js/app.js"></script>
+    <script>
+        const loginForm = document.getElementById('loginForm');
+        const usernameInput = document.getElementById('username');
+        const passwordInput = document.getElementById('password');
+        const errorMsg = document.getElementById('errorMsg');
+        const loginBtn = document.getElementById('loginBtn');
+        const passwordToggle = document.getElementById('passwordToggle');
+
+        passwordToggle.addEventListener('click', () => {
+            const show = passwordInput.type === 'password';
+            passwordInput.type = show ? 'text' : 'password';
+            passwordToggle.textContent = show ? '隐藏' : '显示';
+        });
+
+        document.querySelectorAll('.quick-login button').forEach(btn => {
+            btn.addEventListener('click', () => {
+                usernameInput.value = btn.dataset.account;
+                passwordInput.value = btn.dataset.password;
+                errorMsg.textContent = '';
+                usernameInput.focus();
+            });
+        });
+
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = usernameInput.value.trim();
+            const password = passwordInput.value;
+            errorMsg.textContent = '';
+            if (!username || !password) {
+                errorMsg.textContent = '账号和密码不能为空';
+                return;
+            }
+            loginBtn.disabled = true;
+            loginBtn.textContent = '登录中...';
+            try {
+                const data = await App.fetchJSON('/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                if (data.success) {
+                    App.toast('登录成功，正在进入系统', 'success');
+                    window.setTimeout(() => { window.location.href = data.redirect; }, 350);
+                } else {
+                    errorMsg.textContent = data.message || '登录失败';
+                    loginBtn.disabled = false;
+                    loginBtn.textContent = '登 录';
+                }
+            } catch (err) {
+                errorMsg.textContent = '网络错误，请稍后重试';
+                loginBtn.disabled = false;
+                loginBtn.textContent = '登 录';
+            }
+        });
+    </script>
+</body>
+</html>
